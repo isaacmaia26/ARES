@@ -1,13 +1,16 @@
 ﻿#pragma once
 #include <string>
-#include <fstream>
+#include <vector>
 
-class Logger {
-private:
-    std::ofstream txt;
-    std::ofstream json;
-
+class Logger
+{
 public:
-    Logger(const std::string& txtFile, const std::string& jsonFile);
-    void Log(const std::string& msg, const std::string& type = "info");
+    Logger();
+    ~Logger();
+
+    void Log(const std::string& msg, const std::string& level);
+    const std::vector<std::string>& GetLogs() const;
+
+private:
+    std::vector<std::string> logs;
 };

@@ -4,12 +4,20 @@
 #include <vector>
 #include <string>
 
+#include "../processes/ProcessScanner.h"
+#include "../processes/RuntimeBrokerAnalyzer.h"
+#include "../core/ArtefactCollector.h"
+
 class GuiCore
 {
 public:
     GuiCore();
     ~GuiCore();
     void Run();
+
+    void SetInitialData(const std::vector<PROCESS_INFO>& p,
+        const RUNTIMEBROKER_RESULT& rb,
+        const ARTEFACT_DATA& art);
 
 private:
     bool InitWindow();
@@ -32,6 +40,14 @@ private:
     bool showProcesses;
     bool showLogs;
     bool showMemory;
+    bool showRuntime;
+    bool showArtefacts;
+    bool showActions;
+    bool showDashboard;
 
     std::vector<std::string> logs;
+
+    std::vector<PROCESS_INFO> initialProcesses;
+    RUNTIMEBROKER_RESULT initialRuntime;
+    ARTEFACT_DATA initialArtefacts;
 };

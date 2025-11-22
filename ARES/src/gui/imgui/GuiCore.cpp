@@ -2,6 +2,11 @@
 #include "imgui/imgui.h"
 #include "backends/imgui_impl_win32.h"
 #include "backends/imgui_impl_dx11.h"
+#include "GuiRuntimeBrokerPanel.h"
+#include "GuiProcessPanel.h"
+#include "GuiArtefactPanel.h"
+#include "GuiActionsPanel.h"
+#include "GuiThreatDashboard.h"
 
 static LRESULT CALLBACK WndProc(HWND h, UINT msg, WPARAM w, LPARAM l)
 {
@@ -17,14 +22,30 @@ GuiCore::GuiCore()
     context = nullptr;
     swapchain = nullptr;
     rtv = nullptr;
+
     showProcesses = true;
     showLogs = true;
     showMemory = true;
+    showRuntime = true;
+    showArtefacts = true;
+    showActions = true;
+    showDashboard = true;
+
+    initialProcesses.clear();
 }
 
 GuiCore::~GuiCore()
 {
     Shutdown();
+}
+
+void GuiCore::SetInitialData(const std::vector<PROCESS_INFO>& p,
+    const RUNTIMEBROKER_RESULT& rb,
+    const ARTEFACT_DATA& art)
+{
+    initialProcesses = p;
+    initialRuntime = rb;
+    initialArtefacts = art;
 }
 
 bool GuiCore::InitWindow()
@@ -63,6 +84,7 @@ bool GuiCore::InitD3D()
     swapchain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&backbuf);
     device->CreateRenderTargetView(backbuf, nullptr, &rtv);
     backbuf->Release();
+
     return true;
 }
 
@@ -77,57 +99,28 @@ bool GuiCore::InitImGui()
 void GuiCore::DrawMenu()
 {
     ImGui::Begin("Menu");
+    if (ImGui::Button("Dashboard")) showDashboard = !showDashboard;
     if (ImGui::Button("Processos")) showProcesses = !showProcesses;
+    if (ImGui::Button("RuntimeBroker")) showRuntime = !showRuntime;
+    if (ImGui::Button("Artefactos")) showArtefacts = !showArtefacts;
+    if (ImGui::Button("Ações")) showActions = !showActions;
     if (ImGui::Button("Logs")) showLogs = !showLogs;
     if (ImGui::Button("Memory")) showMemory = !showMemory;
     ImGui::End();
 }
 
-void GuiCore::DrawProcessTable()
-{
-    if (!showProcesses) return;
-
-    ImGui::Begin("Processos");
-    ImGui::Columns(3);
-    ImGui::Text("PID"); ImGui::NextColumn();
-    ImGui::Text("Nome"); ImGui::NextColumn();
-    ImGui::Text("Path"); ImGui::NextColumn();
-    ImGui::Separator();
-    ImGui::Columns(1);
-    ImGui::End();
-}
-
-void GuiCore::DrawLogs()
-{
-    if (!showLogs) return;
-
-    ImGui::Begin("Logs");
-    for (auto& s : logs) ImGui::Text("%s", s.c_str());
-    ImGui::End();
-}
-
-void GuiCore::DrawMemoryPanel()
-{
-    if (!showMemory) return;
-
-    ImGui::Begin("Memory Scanner");
-    ImGui::Text("Entropy:");
-    ImGui::ProgressBar(0.65f, ImVec2(300, 20));
-    ImGui::Spacing();
-    ImGui::Text("Syscall:");
-    ImGui::ProgressBar(0.2f, ImVec2(300, 20));
-    ImGui::Spacing();
-    ImGui::Text("RET Density:");
-    ImGui::ProgressBar(0.4f, ImVec2(300, 20));
-    ImGui::Spacing();
-    ImGui::Text("Heuristic Score: 7.8");
-    ImGui::Separator();
-    ImGui::Text("Status: Suspicious");
-    ImGui::End();
-}
-
 void GuiCore::Render()
 {
+    static GuiProcessPanel procPanel;
+    static GuiRuntimeBrokerPanel rbPanel;
+    static GuiArtefactPanel artePanel;
+    static GuiActionsPanel actPanel;
+    static GuiThreatDashboard dashPanel;
+
+    static std::vector<PROCESS_INFO> processList = initialProcesses;
+    static RUNTIMEBROKER_RESULT rbResult = initialRuntime;
+    static ARTEFACT_DATA arteData = initialArtefacts;
+
     FLOAT c[4] = { 0.05f, 0.05f, 0.05f, 1.0f };
     context->ClearRenderTargetView(rtv, c);
 
@@ -136,9 +129,27 @@ void GuiCore::Render()
     ImGui::NewFrame();
 
     DrawMenu();
-    DrawProcessTable();
-    DrawMemoryPanel();
-    DrawLogs();
+
+    if (showDashboard)
+        dashPanel.Draw(processList, rbResult, arteData);
+
+    if (showProcesses)
+        procPanel.Draw(processList);
+
+    if (showRuntime)
+        rbPanel.Draw(rbResult);
+
+    if (showArtefacts)
+        artePanel.Draw(arteData);
+
+    if (showActions)
+        actPanel.Draw(processList, rbResult, arteData);
+
+    if (showMemory)
+        DrawMemoryPanel();
+
+    if (showLogs)
+        DrawLogs();
 
     ImGui::Render();
     context->OMSetRenderTargets(1, &rtv, nullptr);
